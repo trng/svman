@@ -9,13 +9,15 @@ NC='\033[0m'     # No Color
 backtitle_global='Wrapper for ffmpeg srt inputs v.0.1.1'
 
 
-trap trap_ctrl_c SIGINT SIGTERM
-trap_ctrl_c() { exit 1 }
+trap "exit 1;" SIGINT SIGTERM
+#trap_ctrl_c() { exit 1; }
 
 
 execute_config() {
-  trap trap_ctrl_C_in_func SIGINT SIGTERM
-  trap_ctrl_C_in_func() { ctrl_C_pressed=1  }
+  trap "ctrl_C_pressed=1;" SIGINT SIGTERM
+
+#  trap_ctrl_C_in_func() { ctrl_C_pressed=1; }
+
   while true; do
     echo ${string_in} ${string_transform} ${string_out}
     `${string_in} ${string_transform} ${string_out}`
@@ -124,3 +126,4 @@ while true; do
     config_processing
 
 done
+
