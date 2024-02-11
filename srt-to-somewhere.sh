@@ -1,26 +1,20 @@
 #!/bin/bash
 
 temp_dir='/run'
-this_dir=`pwd`
-configs_dir="${this_dir}/srt-to-somewhere-configs"
-YEL='\033[1;33m' # Yellow
-CYA='\033[1;36m' # Cyan
-NC='\033[0m'     # No Color
-backtitle_global='Wrapper for ffmpeg srt inputs v.0.1.1'
+configs_dir=$(dirname "$0")'/srt-to-somewhere-configs'
+script_version='v.0.3.2'
+backtitle_global='Wrapper for ffmpeg srt inputs '${script_version}
+text_editor='mcedit'
 
 
-trap "exit 1;" SIGINT SIGTERM
-#trap_ctrl_c() { exit 1; }
+trap 'exit 1;' SIGINT SIGTERM
 
 
 execute_config() {
-  trap "ctrl_C_pressed=1;" SIGINT SIGTERM
-
-#  trap_ctrl_C_in_func() { ctrl_C_pressed=1; }
+  trap 'ctrl_C_pressed=1;' SIGINT SIGTERM
 
   while true; do
-    echo ${string_in} ${string_transform} ${string_out}
-    `${string_in} ${string_transform} ${string_out}`
+    $run_this_cmd
     [[ ${ctrl_C_pressed} ]] && break
     sleep 1
   done
@@ -29,52 +23,72 @@ export -f execute_config
 
 
 config_processing() {
+  config_file_fullname=${whiptail_result}
+  config_description=`basename "${config_file_fullname}" .conf`
+  unset ${vars_needed} vars_needed
+  exiting=0
+  err_str=''
+  temp_err_file=/tmp/stserr$RANDOM
   set -a
-  . "${whiptail_result}"
-  config_description=`basename "${whiptail_result}" .conf`
+  . "${config_file_fullname}" 2> ${temp_err_file}
+  exit_code=$?
   set +a
-
-  if [[ ! ${vars_needed} ]]; then
-      echo "'vars_needed' empty or not set. Cannot continiue. Exiting..."
-      exit
+  if [[ ${exit_code} -ne 0 ]] ; then exiting=1 ; err_str+=$(cat ${temp_err_file}) ; rm ${temp_err_file} ; fi
+  if [[ ! ${vars_needed} ]] ; then
+      err_str+="\n\n'vars_needed' empty or not set. Cannot continiue.\n\n"
+      exiting=1
+  else
+      for var_name in ${vars_needed}; do
+        if [[ ! ${!var_name} ]] ; then
+          err_str+="\n\n'$var_name' empty or not set. Cannot continue.\n"
+          exiting=1
+        fi
+    done
   fi
-  for var_name in ${vars_needed}; do
-    if [[ ! ${!var_name} ]]; then
-      echo "'$var_name' empty or not set. Cannot continue."
-      exiting=true
-    fi
-    # printf '%-30s = %s\n' "${var_name}" "${!var_name}"
-  done
-  if [[ $exiting ]] ; then echo "Exiting..." ; exit 1 ; fi
+  if [[ ${exiting} -eq 1 ]] ; then
+      whiptail_result=$( whiptail --title "Error in config file" --backtitle "${backtitle_global}" --yes-button "Open config in editor" --no-button "Previuos menu" --yesno "${err_str}" 22 98 3>&2 2>&1 1>&3- )
+      if [[ $? -eq 0 ]] ; then ${text_editor} "${config_file_fullname}"; fi
+      return
+  fi
 
   # Check script with this description already running
-  linecount=`screen -ls "${config_description}" | wc -l`
-  if [[ ${linecount} -gt 2 ]] ; then
-      #
+  screen -ls "${config_description}" > //dev/null
+  if [[ $? -eq 0 ]] ; then
+      ###################################################################
       # File with this description in use by screen session
-      #
+      ###################################################################
       pid_of_screen=$(screen -S "${config_description}" -Q echo '$PID')
-      ffmpeg_str_inuse=`ps --ppid ${pid_of_screen} -o pid  --no-headers | xargs ps -o args  --no-headers --ppid`
+      ffmpeg_str_inuse=$(ps --ppid ${pid_of_screen} -o pid  --no-headers | xargs ps -ww -o args --no-headers --ppid)
       choices=( 1 "Dive into screen session" )
-      whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "\n\nIN USE - command line from 'ps' output:\n\n\n${ffmpeg_str_inuse}\n\n\n" 20 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
+      whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "\n\nIN USE - command line from 'ps' output:\n\n\n${ffmpeg_str_inuse}\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
       if [[ ${whiptail_result}  ]] ; then
           screen -x ${pid_of_screen} # "${config_description}"
       fi
   else
-      #
-      # File with this description not in use by any screen session
-      #
+      ###################################################################
+      # File with this description NOT in use by any screen session
+      ###################################################################
+      while true; do
+          # Check port in use (remote host іs also checked but this isn't problem - ss just retrun nothing)
+          [[ ${srt_in_ip} ]] && [[ ${srt_in_port} ]] && port_in_use=`ss -Hlnp src ${srt_in_ip} sport ${srt_in_port}`
+          warning_str='\n\nSELECTED CONFIGURATION:\n\n'
+          [[ ${port_in_use} ]] && warning_str="\n\n  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n  !!   WARNING!!!!  Port $( printf %-7s "'${srt_in_port}'") in use!   !!!!\n  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n"
 
-      # Check port in use (remote host іs also checked but this isn't problem - ss just retrun nothing)
-      [[ ${srt_in_ip} ]] && [[ ${srt_in_port} ]] && port_in_use=`ss -Hlnp src ${srt_in_ip} sport ${srt_in_port}`
-      warning_str='\n\nSELECTED CONFIGURATION:\n\n'
-      [[ ${port_in_use} ]] && warning_str="\n\n  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n  !!   WARNING!!!!  Port $( printf %-7s "'${srt_in_port}'") in use!   !!!!\n  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n"
-
-      choices=( 1 "Wrap script to screen session" 2 "Run script here" )
-      whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "${warning_str} ${string_in} ${string_transform} ${string_out}\n\n\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
-      if [[ ${whiptail_result} ]] ; then
-          [[ ${whiptail_result} -eq 1 ]] && screen -d -m -S "${config_description}" bash -c "execute_config" || execute_config
-      fi
+          choices=( 1 "Wrap script to screen session" 2 "Run script here" 3 "Edit ($text_editor)")
+          read -a arr <<< ${run_this_cmd}
+          func_str="${arr[*]}"
+          whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "${warning_str}${func_str}\n\n\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
+          if [[ ${whiptail_result} ]] ; then
+              case ${whiptail_result} in
+                  '1') screen -d -m -S "${config_description}" bash -c "execute_config" ; break ;;
+                  '2') execute_config ;;
+                  '3') ${text_editor} "${config_file_fullname}"; set -a ; . "${config_file_fullname}" ; set +a ;; # reload config after edit
+                    *) a=1 ;; # wrong pattern
+              esac
+          else
+              break;
+          fi
+      done
   fi
 
 } # end of config_processing()
@@ -92,38 +106,40 @@ while true; do
 
     # Build config files list
     i=0
-    active_srt_in_ports=()
-    #for f in ${configs_dir}/*.conf ; do
+    active_srt_in_ports=(); unset srt_in_port;
+
+    OLDIFS=$IFS
+    IFS=$'\n' # in case of spaces in dirnames/filenames
     for f in `LC_ALL=C ls --format='single-column' ${configs_dir}/*.conf`; do
-      tmpfname=`basename "$f" .conf` #  ${f%.*}
+      tmpfname=`basename "$f" .conf` #    ${f%.*}
       files[i]="$f"
-      linecount=`screen -ls "${tmpfname}" | wc -l`
-      if [[ ${linecount} -le 2  ]] ; then
+      screen -ls "${tmpfname}" > //dev/null
+      if [[ $? -ne 0 ]] ; then
           files[i+1]="( NOT RUNNING )  ${tmpfname}"
       else
           files[i+1]="(   RUNNING   )  ${tmpfname}"
           set -a
-          . "${f}"
+          . ${f}
           set +a
           active_srt_in_ports+=( $srt_in_port  )
+          unset srt_in_port
       fi
       (( i+=2  ))
     done
+    IFS=$OLDIFS
 
     # list of used srt listen ports (selected config will be checked with this list)
     str=${active_srt_in_ports[*]}
     str='port '${str// / or port\ }
-    [[ ${#active_srt_in_ports[*]} -eq 1 ]] && active_srt_in_ports=${str} || active_srt_in_ports='( '$str' )'
+    [[ ${#active_srt_in_ports[*]} -eq 1 ]] && run_this_cmd_params=${str} || run_this_cmd_params='( '$str' )'
 
-    # Show dialogue
+    # Show diaogue
     export NEWT_COLORS='
       root=,blue
       textbox=blue,
     '
     whiptail_result=$(whiptail --title "Configs availible / running" --backtitle "${backtitle_global}"  --notags --menu "Please select config" 26 98 12 "${files[@]}" 3>&2 2>&1 1>&3- )
-    if [[ ! ${whiptail_result}  ]] ; then echo -e "\n${YEL}Config not selected. Exiting...${NC}\n"; exit ; fi
-
+    if [[ ! ${whiptail_result}  ]] ; then echo -e "\n\nConfig not selected. Exiting...\n\n"; exit ; fi
     config_processing
 
 done
-
