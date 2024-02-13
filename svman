@@ -2,4 +2,4 @@
 
 temp_dir='/run'
 configs_dir=$(dirname "$0")'/svman-configs'
-SCRIPT_VERSION='0.4.16'
+SCRIPT_VERSION="0.4.16"
