@@ -2,8 +2,9 @@
 
 temp_dir='/run'
 configs_dir=$(dirname "$0")'/svman-configs'
-SCRIPT_VERSION='0.4.16'
-backtitle_global='Wrapper for ffmpeg srt inputs version '${SCRIPT_VERSION}
+SCRIPT_VERSION='0.4.17'
+SCRIPT_VERSION='0.4.17
+backtitle_global='Wrapper for ffmpeg srt inputs ver. '${SCRIPT_VERSION}
 text_editor='mcedit'
 
 
