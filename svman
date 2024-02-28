@@ -1,8 +1,8 @@
 #!/bin/bash
 
 configs_dir=`dirname $(realpath "$0")`/svman-configs
-SCRIPT_VERSION='0.5.27'
-backtitle_global='Wrapper for ffmpeg srt inputs v. '${SCRIPT_VERSION}
+SCRIPT_VERSION='0.5.28'
+backtitle_global='Wrapper for ffmpeg/gstreamer srt inputs v. '${SCRIPT_VERSION}
 text_editor=mcedit
 symlinkdir="/usr/local/bin/"
 
