@@ -1,7 +1,7 @@
 #!/bin/bash
 
 configs_dir=`dirname $(realpath "$0")`/svman-configs
-SCRIPT_VERSION='0.5.28'
+SCRIPT_VERSION='0.5.29'
 backtitle_global='Wrapper for ffmpeg/gstreamer srt inputs v. '${SCRIPT_VERSION}
 text_editor=mcedit
 symlinkdir="/usr/local/bin/"
@@ -61,7 +61,7 @@ config_processing() {
 #      ffmpeg_str_inuse=$( ps --ppid ${pid_of_screen} -o pid  --no-headers | xargs ps -ww -o pid --no-headers --ppid | xargs ps -ww -o args --no-headers --ppid )
       ffmpeg_str_inuse=$(ps -ww -o args --no-headers --pid ${lastpid})
       choices=( 1 "Dive into screen session" )
-      whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "\n\nIN USE - command line from 'ps' output:\n\n\n${ffmpeg_str_inuse}\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
+      whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "\n\nIN USE - command line from 'ps' output:\n\n\n${ffmpeg_str_inuse//\-/\\n\-}\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
       if [[ ${whiptail_result}  ]] ; then
           screen -x ${pid_of_screen} # "${config_description}"
       fi
@@ -78,7 +78,7 @@ config_processing() {
           choices=( 1 "Wrap script to screen session" 2 "Run script here" 3 "Edit ($text_editor)")
           read -a arr <<< ${run_this_cmd}
           func_str="${arr[*]}"
-          whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "${warning_str}${func_str}\n\n\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
+          whiptail_result=$(whiptail --title "'${config_description}'" --backtitle "${backtitle_global}" --notags --menu "${warning_str}${func_str//\-/\\n\-}\n\n\n\n\n" 22 98 3 "${choices[@]}" 3>&2 2>&1 1>&3- )
           if [[ ${whiptail_result} ]] ; then
               [[ ${config_description} = '---'* ]] && runuser_str='' || runuser_str='runuser -u svman'; # Trick (tripple hyphen in filename) to separate tcpdump from ffmpeg/gstreamer (and run ffmpeg/gstreamer with "runuser"). !!! Not pretty good !!!
               case ${whiptail_result} in

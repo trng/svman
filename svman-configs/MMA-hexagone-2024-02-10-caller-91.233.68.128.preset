@@ -1,13 +1,13 @@
 vars_needed='srt_in_ip srt_in_port run_this_cmd'
 
 srt_in_ip='91.233.68.128'
-srt_in_port=20105
+srt_in_port=20107
 
 run_this_cmd="ffmpeg \
  -re \
- -i srt://${srt_in_ip}:${srt_in_port}?pkt_size=1316&mode=caller&passphrase=1002MMAHEXAGONE \
+ -i srt://${srt_in_ip}:${srt_in_port}?pkt_size=1316&mode=caller&passphrase=MMAHEXAGONE \
  -map 0:v:0 \
  -c:v copy \
  -map 0:a:1 \
  -c:a aac -b:a 192k -ar 48000 \
- -f flv rtmp://95.67.110.165:1935/livebasket/srt128hexagone"
+ -f mpegts srt://194.183.166.229:10128?mode=caller"
